@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -22,6 +23,7 @@
  */
 int burt_cd(char **args);
 int burt_help(char **args);
+int burt_time(char **args);
 int burt_exit(char **args);
 
 /*
@@ -30,11 +32,13 @@ int burt_exit(char **args);
 char *builtin_str[] = {
     "cd",
     "help",
+    "time",
     "exit"};
 
 int (*builtin_func[])(char **) = {
     &burt_cd,
     &burt_help,
+    &burt_time,
     &burt_exit};
 
 int burt_num_builtins()
@@ -85,6 +89,21 @@ int burt_help(char **args)
   }
 
   printf("Use the man command for information on other programs.\n");
+  return 1;
+}
+/**
+   @brief Builtin command: print current time.
+   @param args List of args.  Not examined.
+   @return Always returns 1, to continue execution.
+ */
+
+int burt_time(char **args)
+{
+  time_t mytime = time(NULL);
+  char *time_str = ctime(&mytime);
+  time_str[strlen(time_str) - 1] = '\0';
+  printf("Current Time : %s\n", time_str);
+
   return 1;
 }
 
@@ -255,13 +274,11 @@ char **burt_split_line(char *line)
   }
   tokens[position] = NULL;
 
-  int token_size = sizeof(tokens);
   int i;
-  for (i = 0; i < token_size; i++)
+  for (i = 0; i < sizeof(tokens); i++)
   {
     printf("%i%s\n", i, tokens[i]);
   }
-  // printf("%ld\n", sizeof(tokens));
   return tokens;
 }
 
