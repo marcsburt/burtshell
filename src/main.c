@@ -12,11 +12,20 @@
 
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
+
+struct Node
+{
+  char data;
+  struct Node *next;
+};
+
+typedef struct Node *hist;
 
 /*
   Function Declarations for builtin shell commands:
@@ -24,21 +33,28 @@
 int burt_cd(char **args);
 int burt_help(char **args);
 int burt_time(char **args);
+int burt_history(char **args);
+int burt_clear_history(char **args);
 int burt_exit(char **args);
 
 /*
   List of builtin commands, followed by their corresponding functions.
  */
+
 char *builtin_str[] = {
     "cd",
     "help",
     "time",
+    "history",
+    "clear_hist",
     "exit"};
 
 int (*builtin_func[])(char **) = {
     &burt_cd,
     &burt_help,
     &burt_time,
+    &burt_history,
+    &burt_clear_history,
     &burt_exit};
 
 int burt_num_builtins()
@@ -46,15 +62,35 @@ int burt_num_builtins()
   return sizeof(builtin_str) / sizeof(char *);
 }
 
-/*
-  Builtin function implementations.
-*/
+#define BUF 128 /* can change the buffer size as well */
+#define TOT 10  /* change to accomodate other sizes, change ONCE here */
 
-/**
-   @brief Bultin command: change directory.
-   @param args List of args.  args[0] is "cd".  args[1] is the directory.
-   @return Always returns 1, to continue executing.
- */
+int run_last_hist(char **args)
+{
+  char line[TOT][BUF];
+  FILE *plist = NULL;
+  int i = 0;
+  int x = 0;
+  int total = 0;
+
+  plist = fopen("/home/burtamus/Projects/burtShell/history.txt", "r");
+  while (fgets(line[i], BUF, plist))
+  {
+    /* get rid of ending \n from fgets */
+    line[i][strlen(line[i]) - 1] = '\0';
+    i++;
+  }
+
+  for (x = 0; x < burt_num_builtins(); x++)
+  {
+    if (strcmp(builtin_str[x], line[i - 1]) == 0)
+    {
+      return (*builtin_func[x])(args);
+    }
+  }
+  return 1;
+}
+
 int burt_cd(char **args)
 {
   if (args[1] == NULL)
@@ -71,11 +107,6 @@ int burt_cd(char **args)
   return 1;
 }
 
-/**
-   @brief Builtin command: print help.
-   @param args List of args.  Not examined.
-   @return Always returns 1, to continue executing.
- */
 int burt_help(char **args)
 {
   int i;
@@ -91,11 +122,6 @@ int burt_help(char **args)
   printf("Use the man command for information on other programs.\n");
   return 1;
 }
-/**
-   @brief Builtin command: print current time.
-   @param args List of args.  Not examined.
-   @return Always returns 1, to continue execution.
- */
 
 int burt_time(char **args)
 {
@@ -107,21 +133,70 @@ int burt_time(char **args)
   return 1;
 }
 
-/**
-   @brief Builtin command: exit.
-   @param args List of args.  Not examined.
-   @return Always returns 0, to terminate execution.
- */
+void add_hist(char *line)
+{
+  FILE *hist_file;
+  char *h = "history";
+  char *b = "!!";
+  char *bn = "!";
+  hist_file = fopen("/home/burtamus/Projects/burtShell/history.txt", "a");
+  if (hist_file == NULL)
+  {
+    perror("Error opening file");
+  }
+  else
+  {
+    if (line != NULL && strlen(line) != 0 && strcmp(line, h) != 0 && strcmp(line, b) != 0 && line[0] != '!')
+    {
+      printf("Line: %s\n", line);
+      fprintf(hist_file, "%s\n", line);
+    }
+  }
+  fclose(hist_file);
+}
+
+int burt_clear_history(char **args)
+{
+  FILE *hist_file;
+  char link[2] = "fs";
+  hist_file = fopen("/home/burtamus/Projects/burtShell/history.txt", "w");
+  fprintf(hist_file, "%s\n", link);
+  fclose(hist_file);
+  return 1;
+}
+
+int burt_history(char **args)
+{
+
+  char line[TOT][BUF];
+  FILE *plist = NULL;
+  int i = 0;
+  int total = 0;
+
+  plist = fopen("/home/burtamus/Projects/burtShell/history.txt", "r");
+  while (fgets(line[i], BUF, plist))
+  {
+    /* get rid of ending \n from fgets */
+    line[i][strlen(line[i]) - 1] = '\0';
+    i++;
+  }
+
+  total = i;
+
+  for (i = 0; i < total; ++i)
+  {
+    printf("%d  ", i + 1);
+    printf("%s\n", line[i]);
+  }
+
+  return 1;
+}
+
 int burt_exit(char **args)
 {
   return 0;
 }
 
-/**
-  @brief Launch a program and wait for it to terminate.
-  @param args Null terminated list of arguments (including program).
-  @return Always returns 1, to continue execution.
- */
 int burt_launch(char **args)
 {
   pid_t pid;
@@ -154,15 +229,10 @@ int burt_launch(char **args)
   return 1;
 }
 
-/**
-   @brief Execute shell built-in or launch program.
-   @param args Null terminated list of arguments.
-   @return 1 if the shell should continue running, 0 if it should terminate
- */
 int burt_execute(char **args)
 {
   int i;
-
+  char *bang = "!!";
   if (args[0] == NULL)
   {
     // An empty command was entered.
@@ -175,23 +245,23 @@ int burt_execute(char **args)
     {
       return (*builtin_func[i])(args);
     }
+    if (strcmp(args[0], bang) == 0)
+    {
+      return run_last_hist(args);
+    }
   }
 
   return burt_launch(args);
 }
 
 #define BURT_RL_BUFSIZE 1024
-/**
-   @brief Read a line of input from stdin.
-   @return The line from stdin.
- */
-char *burt_read_line(void)
+
+char *burt_read_line()
 {
   int bufsize = BURT_RL_BUFSIZE;
   int position = 0;
   char *buffer = malloc(sizeof(char) * bufsize);
   int c;
-
   if (!buffer)
   {
     fprintf(stderr, "burt: allocation error\n");
@@ -234,16 +304,13 @@ char *burt_read_line(void)
 
 #define BURT_TOK_BUFSIZE 64
 #define BURT_TOK_DELIM " \t\r\n\a"
-/**
-   @brief Split a line into tokens (very naively).
-   @param line The line.
-   @return Null-terminated array of tokens.
- */
+
 char **burt_split_line(char *line)
 {
   int bufsize = BURT_TOK_BUFSIZE, position = 0;
   char **tokens = malloc(bufsize * sizeof(char *));
   char *token, **tokens_backup;
+  char hist_token;
 
   if (!tokens)
   {
@@ -256,6 +323,7 @@ char **burt_split_line(char *line)
   {
     tokens[position] = token;
     position++;
+    // printf("%s\n", tokens[position]);
 
     if (position >= bufsize)
     {
@@ -273,28 +341,19 @@ char **burt_split_line(char *line)
     token = strtok(NULL, BURT_TOK_DELIM);
   }
   tokens[position] = NULL;
-
-  int i;
-  for (i = 0; i < sizeof(tokens); i++)
-  {
-    printf("%i%s\n", i, tokens[i]);
-  }
   return tokens;
 }
 
-/**
-   @brief Loop getting input and executing it.
- */
 void burt_loop(void)
 {
   char *line;
   char **args;
   int status;
-
   do
   {
     printf("MB> ");
     line = burt_read_line();
+    add_hist(line);
     args = burt_split_line(line);
     status = burt_execute(args);
 
@@ -303,12 +362,6 @@ void burt_loop(void)
   } while (status);
 }
 
-/**
-   @brief Main entry point.
-   @param argc Argument count.
-   @param argv Argument vector.
-   @return status code
- */
 int main(int argc, char **argv)
 {
   // Load config files, if any.
