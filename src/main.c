@@ -292,12 +292,11 @@ int run_pick_hist(char **args, int bang_num)
   {
     /* get rid of ending \n from fgets */
     line[i][strlen(line[i]) - 1] = '\0';
-    // printf("%d", i);
     i++;
   }
   for (x = 0; x < burt_num_builtins(); x++)
   {
-    if (strcmp(builtin_str[x], line[i]) == 0)
+    if (strcmp(builtin_str[x], line[i - 1]) == 0)
     {
       return (*builtin_func[x])(args);
     }
