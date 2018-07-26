@@ -65,32 +65,6 @@ int burt_num_builtins()
 #define BUF 128 /* can change the buffer size as well */
 #define TOT 10  /* change to accomodate other sizes, change ONCE here */
 
-int run_last_hist(char **args)
-{
-  char line[TOT][BUF];
-  FILE *plist = NULL;
-  int i = 0;
-  int x = 0;
-  int total = 0;
-
-  plist = fopen("/home/burtamus/Projects/burtShell/history.txt", "r");
-  while (fgets(line[i], BUF, plist))
-  {
-    /* get rid of ending \n from fgets */
-    line[i][strlen(line[i]) - 1] = '\0';
-    i++;
-  }
-
-  for (x = 0; x < burt_num_builtins(); x++)
-  {
-    if (strcmp(builtin_str[x], line[i - 1]) == 0)
-    {
-      return (*builtin_func[x])(args);
-    }
-  }
-  return 1;
-}
-
 int burt_cd(char **args)
 {
   if (args[1] == NULL)
@@ -139,7 +113,7 @@ void add_hist(char *line)
   char *h = "history";
   char *b = "!!";
   char *bn = "!";
-  hist_file = fopen("/home/burtamus/Projects/burtShell/history.txt", "a");
+  hist_file = fopen("/tmp/history.txt", "a");
   if (hist_file == NULL)
   {
     perror("Error opening file");
@@ -148,7 +122,6 @@ void add_hist(char *line)
   {
     if (line != NULL && strlen(line) != 0 && strcmp(line, h) != 0 && strcmp(line, b) != 0 && line[0] != '!')
     {
-      printf("Line: %s\n", line);
       fprintf(hist_file, "%s\n", line);
     }
   }
@@ -158,9 +131,7 @@ void add_hist(char *line)
 int burt_clear_history(char **args)
 {
   FILE *hist_file;
-  char link[2] = "fs";
-  hist_file = fopen("/home/burtamus/Projects/burtShell/history.txt", "w");
-  fprintf(hist_file, "%s\n", link);
+  hist_file = fopen("/tmp/history.txt", "w");
   fclose(hist_file);
   return 1;
 }
@@ -169,12 +140,26 @@ int burt_history(char **args)
 {
 
   char line[TOT][BUF];
-  FILE *plist = NULL;
+  FILE *hist_file = NULL;
   int i = 0;
   int total = 0;
+  int size;
 
-  plist = fopen("/home/burtamus/Projects/burtShell/history.txt", "r");
-  while (fgets(line[i], BUF, plist))
+  hist_file = fopen("/tmp/history.txt", "r");
+  if (NULL != hist_file)
+  {
+    fseek(hist_file, 0, SEEK_END);
+    size = ftell(hist_file);
+    if (0 == size)
+    {
+      printf("History is empty\n");
+      return 1;
+    }
+  }
+  fclose(hist_file);
+  free(hist_file);
+  hist_file = fopen("/tmp/history.txt", "r");
+  while (fgets(line[i], BUF, hist_file))
   {
     /* get rid of ending \n from fgets */
     line[i][strlen(line[i]) - 1] = '\0';
@@ -188,6 +173,7 @@ int burt_history(char **args)
     printf("%d  ", i + 1);
     printf("%s\n", line[i]);
   }
+  fclose(hist_file);
 
   return 1;
 }
@@ -229,6 +215,9 @@ int burt_launch(char **args)
   return 1;
 }
 
+int run_last_hist(char **args);
+char **burt_split_line(char *line);
+
 int burt_execute(char **args)
 {
   int i;
@@ -252,6 +241,35 @@ int burt_execute(char **args)
   }
 
   return burt_launch(args);
+}
+
+int run_last_hist(char **args)
+{
+  char line[TOT][BUF];
+  FILE *hist_file = NULL;
+  int i = 0;
+  int x = 0;
+  int total = 0;
+  char **hist_args;
+
+  hist_file = fopen("/tmp/history.txt", "r");
+  while (fgets(line[i], BUF, hist_file))
+  {
+    /* get rid of ending \n from fgets */
+    line[i][strlen(line[i]) - 1] = '\0';
+    i++;
+  }
+
+  for (x = 0; x < burt_num_builtins(); x++)
+  {
+    if (strcmp(builtin_str[x], line[i - 1]) == 0)
+    {
+      return (*builtin_func[x])(args);
+    }
+  }
+  hist_args = burt_split_line(line[i - 1]);
+  printf("hist_args: %s\n", hist_args[0]);
+  return burt_launch(hist_args);
 }
 
 #define BURT_RL_BUFSIZE 1024
@@ -349,6 +367,7 @@ void burt_loop(void)
   char *line;
   char **args;
   int status;
+  burt_clear_history(args);
   do
   {
     printf("MB> ");
