@@ -209,12 +209,15 @@ int burt_launch(char **args)
   return 1;
 }
 
+// Bring these functions up so I can use them;
 int run_last_hist(char **args);
 char **burt_split_line(char *line);
+int run_pick_hist(char **args, int bang_num);
 
 int burt_execute(char **args)
 {
   int i;
+  int bang;
   char *bangbang = "!!";
   int val_frst = args[0][0];
   int val_scnd = args[0][1];
@@ -239,8 +242,8 @@ int burt_execute(char **args)
     // testing for value of after bang
     if (val_frst == 33 && val_scnd != 33 && val_scnd != 0 && val_thrd == 0)
     {
-      printf("ha this is a bang num %d \n", atoi(args[0][1]));
-      return 1;
+      bang = atoi(&args[0][1]);
+      return run_pick_hist(args, bang);
     }
   }
   return burt_launch(args);
@@ -266,6 +269,35 @@ int run_last_hist(char **args)
   for (x = 0; x < burt_num_builtins(); x++)
   {
     if (strcmp(builtin_str[x], line[i - 1]) == 0)
+    {
+      return (*builtin_func[x])(args);
+    }
+  }
+  hist_args = burt_split_line(line[i - 1]);
+  fclose(hist_file);
+  return burt_launch(hist_args);
+}
+
+int run_pick_hist(char **args, int bang_num)
+{
+  char line[TOT][BUF];
+  FILE *hist_file = NULL;
+  int i = 0;
+  int x = 0;
+  // int total = 0;
+  char **hist_args;
+
+  hist_file = fopen("/tmp/history.txt", "r");
+  while (fgets(line[i], BUF, hist_file) && i < bang_num)
+  {
+    /* get rid of ending \n from fgets */
+    line[i][strlen(line[i]) - 1] = '\0';
+    // printf("%d", i);
+    i++;
+  }
+  for (x = 0; x < burt_num_builtins(); x++)
+  {
+    if (strcmp(builtin_str[x], line[i]) == 0)
     {
       return (*builtin_func[x])(args);
     }
