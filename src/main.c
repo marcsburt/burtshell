@@ -18,15 +18,6 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
-
-struct Node
-{
-  char data;
-  struct Node *next;
-};
-
-typedef struct Node *hist;
-
 /*
   Function Declarations for builtin shell commands:
  */
@@ -36,6 +27,12 @@ int burt_time(char **args);
 int burt_history(char **args);
 int burt_clear_history(char **args);
 int burt_exit(char **args);
+
+#define BUF 128 /* can change the buffer size as well */
+#define TOT 10  /* change to accomodate other sizes, change ONCE here */
+#define BURT_RL_BUFSIZE 1024
+#define BURT_TOK_BUFSIZE 64
+#define BURT_TOK_DELIM " \t\r\n\a"
 
 /*
   List of builtin commands, followed by their corresponding functions.
@@ -61,9 +58,6 @@ int burt_num_builtins()
 {
   return sizeof(builtin_str) / sizeof(char *);
 }
-
-#define BUF 128 /* can change the buffer size as well */
-#define TOT 10  /* change to accomodate other sizes, change ONCE here */
 
 int burt_cd(char **args)
 {
@@ -221,7 +215,11 @@ char **burt_split_line(char *line);
 int burt_execute(char **args)
 {
   int i;
-  char *bang = "!!";
+  char *bangbang = "!!";
+  int val_frst = args[0][0];
+  int val_scnd = args[0][1];
+  int val_thrd = args[0][2];
+
   if (args[0] == NULL)
   {
     // An empty command was entered.
@@ -234,12 +232,17 @@ int burt_execute(char **args)
     {
       return (*builtin_func[i])(args);
     }
-    if (strcmp(args[0], bang) == 0)
+    if (strcmp(args[0], bangbang) == 0)
     {
       return run_last_hist(args);
     }
+    // testing for value of after bang
+    if (val_frst == 33 && val_scnd != 33 && val_scnd != 0 && val_thrd == 0)
+    {
+      printf("ha this is a bang num %d \n", atoi(args[0][1]));
+      return 1;
+    }
   }
-
   return burt_launch(args);
 }
 
@@ -268,11 +271,9 @@ int run_last_hist(char **args)
     }
   }
   hist_args = burt_split_line(line[i - 1]);
-  printf("hist_args: %s\n", hist_args[0]);
+  fclose(hist_file);
   return burt_launch(hist_args);
 }
-
-#define BURT_RL_BUFSIZE 1024
 
 char *burt_read_line()
 {
@@ -319,9 +320,6 @@ char *burt_read_line()
     }
   }
 }
-
-#define BURT_TOK_BUFSIZE 64
-#define BURT_TOK_DELIM " \t\r\n\a"
 
 char **burt_split_line(char *line)
 {
