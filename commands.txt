@@ -11,3 +11,6 @@ code .
 python (if installed)
 !!
 !#
+
+
+History is kept in history.txt file in /path/to/source/history.txt
