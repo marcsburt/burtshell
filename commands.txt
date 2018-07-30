@@ -1,0 +1,13 @@
+A very basic list of commands that I have tested.
+
+
+help
+time
+exit
+history
+clear_history
+less
+code .
+python (if installed)
+!!
+!#
