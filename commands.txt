@@ -1,5 +1,4 @@
-A very basic list of commands that I have tested.
-
+A very basic list of commands that I have tested.  This should work with anything forkable
 
 help
 time
